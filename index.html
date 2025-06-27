@@ -531,19 +531,51 @@
                         avaliacoesFiltradas = avaliacoesFiltradas.filter(a => a.alunoId === parseInt(alunoId));
                     }
                     
-                    // TODO: Implementar filtro por período
+                    // Aplicar filtro por período
+                    if (periodo !== "all") {
+                        avaliacoesFiltradas = avaliacoesFiltradas.filter(a => {
+                            const dataAvaliacao = new Date(a.data);
+                            const mes = dataAvaliacao.getMonth() + 1; // Meses são 0-indexados
+
+                            if (periodo === "1") { // Setembro a Dezembro
+                                return mes >= 9 && mes <= 12;
+                            } else if (periodo === "2") { // Janeiro a Março
+                                return mes >= 1 && mes <= 3;
+                            } else if (periodo === "3") { // Abril a Junho
+                                return mes >= 4 && mes <= 6;
+                            }
+                            return false;
+                        });
+                    }
                     
-                    exibirHistorico(avaliacoesFiltradas);
+                    await exibirHistorico(avaliacoesFiltradas);
                 };
             }
+
+            // Adicionar event listeners para os filtros de histórico
+            document.getElementById('filtro-aluno').addEventListener('change', carregarHistorico);
+            document.getElementById('filtro-periodo').addEventListener('change', carregarHistorico);
             
-            function exibirHistorico(avaliacoes) {
+            async function exibirHistorico(avaliacoes) {
                 const container = document.getElementById('historico-tabela');
                 
                 if (avaliacoes.length === 0) {
                     container.innerHTML = '<p>Nenhuma avaliação registada</p>';
                     return;
                 }
+
+                // Obter todos os alunos para mapear IDs para nomes
+                const alunosMap = await new Promise((resolve, reject) => {
+                    const transaction = db.transaction(['alunos'], 'readonly');
+                    const store = transaction.objectStore('alunos');
+                    const request = store.getAll();
+                    request.onsuccess = () => {
+                        const map = new Map();
+                        request.result.forEach(aluno => map.set(aluno.id, aluno.nome));
+                        resolve(map);
+                    };
+                    request.onerror = () => reject(request.error);
+                });
                 
                 let html = `
                     <table>
@@ -565,7 +597,7 @@
                 
                 avaliacoes.forEach(avaliacao => {
                     // Obter nome do aluno (simplificado)
-                    const alunoNome = `Aluno ${avaliacao.alunoId}`;
+                    const alunoNome = alunosMap.get(avaliacao.alunoId) || `Aluno ID: ${avaliacao.alunoId}`;
                     
                     // Determinar status
                     let statusClass, statusText;
@@ -641,7 +673,16 @@
                     document.getElementById('total-avaliacoes').textContent = e.target.result;
                 };
                 
-                // TODO: Calcular média real
+                avaliacoesStore.getAll().onsuccess = function(e) {
+                    const todasAvaliacoes = e.target.result;
+                    if (todasAvaliacoes && todasAvaliacoes.length > 0) {
+                        const somaClassificacoes = todasAvaliacoes.reduce((acc, curr) => acc + parseFloat(curr.classificacaoFinal), 0);
+                        const media = somaClassificacoes / todasAvaliacoes.length;
+                        document.getElementById('media-turma').textContent = media.toFixed(2);
+                    } else {
+                        document.getElementById('media-turma').textContent = '0.00';
+                    }
+                };
             }
             
             function atualizarListaAlunos(alunos) {
