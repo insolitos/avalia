@@ -333,25 +333,43 @@
             // Elementos da UI
             const app = document.getElementById('app');
             const loading = document.querySelector('.loading');
+            const mainContent = document.querySelector('main'); // Referência ao <main>
             const navButtons = document.querySelectorAll('.nav-btn');
             const views = document.querySelectorAll('.view');
             
             // Inicialização do IndexedDB
             let db;
             const request = indexedDB.open('AvaliacoesPortuguesDB', 1);
+
+            // Mostrar a app imediatamente para que a estrutura base seja visível
+            app.style.display = 'block';
             
             request.onerror = function(event) {
                 console.error('Erro ao abrir a base de dados:', event.target.errorCode);
-                loading.textContent = 'Erro ao iniciar a aplicação. Recarregue a página.';
+                const errorMessage = 'Erro crítico ao iniciar a base de dados. A aplicação pode não funcionar corretamente. Tente recarregar a página ou limpar os dados do site.';
+
+                // Manter o 'loading' visível com a mensagem de erro
+                loading.textContent = errorMessage;
+                loading.style.display = 'block'; // Garante que está visível
+
+                // Opcionalmente, mostrar o erro também no conteúdo principal se o loading estiver absoluto
+                // e puder ser sobreposto.
+                const errorDiv = document.createElement('div');
+                errorDiv.style.color = 'red';
+                errorDiv.style.padding = '20px';
+                errorDiv.textContent = errorMessage;
+                mainContent.insertBefore(errorDiv, mainContent.firstChild);
+
+                // Desabilitar funcionalidades principais ou navegação se necessário
+                navButtons.forEach(button => button.disabled = true);
             };
             
             request.onsuccess = function(event) {
                 db = event.target.result;
                 console.log('Base de dados aberta com sucesso');
                 
-                // Esconder loading e mostrar app
+                // Esconder loading
                 loading.style.display = 'none';
-                app.style.display = 'block';
                 
                 // Carregar dados iniciais
                 carregarAlunos();
